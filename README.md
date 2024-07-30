@@ -19,7 +19,7 @@ With homeMate you can:
 
 ## Organization
 
-[[Juraj Dobrila University in Pula]](https://www.unipu.hr/)
+[Juraj Dobrila University in Pula](https://www.unipu.hr/)
 
 [Faculty of Informatics in Pula](https://fipu.unipu.hr/fipu)
 
