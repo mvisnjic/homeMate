@@ -1,9 +1,11 @@
 import os
-
+from dotenv import load_dotenv 
 import redis
 from flask import (Flask)
 from flask_jwt_extended import (JWTManager)
 from flask_cors import CORS
+
+load_dotenv()
 
 
 def create_app(test_config=None):
@@ -17,7 +19,7 @@ def create_app(test_config=None):
     # want your redis instance configured to persist data to disk, so that a restart
     # does not cause your application to forget that a JWT was revoked.
     jwt_redis_blocklist = redis.StrictRedis(
-        host="localhost", port=6379, db=0, decode_responses=True
+        host=os.getenv("REDIS_HOST"), port=os.getenv("REDIS_PORT"), db=0, decode_responses=True
     )
 
 
@@ -51,5 +53,11 @@ def create_app(test_config=None):
     
     from . import auth
     app.register_blueprint(auth.bp)
+    
+    from . import chat
+    app.register_blueprint(chat.bp)
 
+    # from . import model WIP
+    # model.init_app(app) WIP
+    
     return app

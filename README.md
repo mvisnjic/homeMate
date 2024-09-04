@@ -24,3 +24,30 @@ With homeMate you can:
 [Faculty of Informatics in Pula](https://fipu.unipu.hr/fipu)
 
 Menthor: [doc. dr. sc. Nikola Tanković](https://fipu.unipu.hr/fipu/nikola.tankovic)
+
+## Docker - that's all!
+
+1. create instance/config.py
+
+- this is example
+
+```
+from datetime import timedelta
+import os
+
+TESTING=True
+JWT_ACCESS_TOKEN_EXPIRES=timedelta(minutes=30)
+JWT_REFRESH_TOKEN_EXPIRES=timedelta(days=15)
+JWT_SECRET_KEY="something"
+JWT_BLACKLIST_ENABLED=True
+JWT_BLACKLIST_TOKEN_CHECKS=['access']
+DATABASE=os.path.join('./instance', example-db-name)
+```
+
+2. cp .env.example .env
+
+3. Docker!
+
+```
+sudo docker compose up --build
+```
