@@ -27,7 +27,7 @@ Menthor: [doc. dr. sc. Nikola Tanković](https://fipu.unipu.hr/fipu/nikola.tanko
 
 ## Docker - that's all!
 
-1. create instance/config.py
+1. Create instance/config.py
 
 - this is example
 
@@ -44,9 +44,13 @@ JWT_BLACKLIST_TOKEN_CHECKS=['access']
 DATABASE=os.path.join('./instance', example-db-name)
 ```
 
-2. cp .env.example .env
+2. Copy and modify .env
 
-3. Docker!
+```
+cp .env.example .env
+```
+
+4. Docker!
 
 ```
 sudo docker compose up --build
