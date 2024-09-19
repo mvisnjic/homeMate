@@ -1,8 +1,40 @@
 DROP TABLE IF EXISTS user;
-DROP TABLE IF EXISTS post;
+DROP TABLE IF EXISTS chat;
+DROP TABLE IF EXISTS chat_line;
+
+DROP INDEX IF EXISTS fk_chat_line;
+DROP INDEX IF EXISTS fk_chat_user;
 
 CREATE TABLE user (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  username TEXT UNIQUE NOT NULL,
-  password TEXT NOT NULL
+  username VARCHAR(255) UNIQUE NOT NULL,
+  password TEXT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP,
+  verified INTEGER DEFAULT 0
 );
+
+CREATE TABLE chat (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name varchar(255),
+  created_by INTEGER NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (created_by) REFERENCES user(id) ON DELETE CASCADE ON UPDATE NO ACTION
+);
+
+CREATE INDEX fk_chat_created_by ON chat(created_by);
+
+CREATE TABLE chat_line (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  chat_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  line_text TEXT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (chat_id) REFERENCES chat(id) ON DELETE CASCADE ON UPDATE NO ACTION,
+  FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE NO ACTION ON UPDATE NO ACTION
+);
+
+CREATE INDEX fk_chat_line ON chat_line(chat_id);
+CREATE INDEX fk_chat_user ON chat_line(user_id);
+
+INSERT INTO user (username, password) VALUES ('homemate', 'no-login');

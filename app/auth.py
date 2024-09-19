@@ -1,17 +1,19 @@
-import functools
+import os
 import redis
 from flask import (
-    Blueprint, flash, g, redirect, render_template, request, session, url_for, jsonify
+    Blueprint, request, session, jsonify
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 from flask_jwt_extended import (create_access_token, get_jwt_identity, jwt_required, get_jwt, create_refresh_token, unset_jwt_cookies)
 from datetime import timedelta
 from app.db import get_db
+from dotenv import load_dotenv 
+load_dotenv()
 
 bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 jwt_redis_blocklist = redis.StrictRedis(
-        host="localhost", port=6379, db=0, decode_responses=True
+    host=os.getenv("REDIS_HOST"), port=os.getenv("REDIS_PORT"), db=0, decode_responses=True
     )
 
 @bp.route('/register', methods=('GET', 'POST'))
@@ -29,12 +31,12 @@ def register():
 
         if error is None:
             try:
-                db.execute(
+                cursor = db.execute(
                     "INSERT INTO user (username, password) VALUES (?, ?)",
-                    (username, generate_password_hash(password)),
+                    (username.lower(), generate_password_hash(password)),
                 )
                 db.commit()
-                return jsonify({'success' : {'username': username.lower()}}), 200
+                return jsonify({'success' : {'registered_username': username.lower(), 'user_id': cursor.lastrowid}}), 200
             except db.IntegrityError:
                 error = 'Something went wrong, try again with new data!'
                 return jsonify(error=error), 406
@@ -52,7 +54,7 @@ def login():
         db = get_db()
         error = None
         user = db.execute(
-            'SELECT * FROM user WHERE username = ?', (username,)
+            'SELECT * FROM user WHERE username = ? AND verified = 1', (username.lower(),)
         ).fetchone()
         
         if not username:
@@ -63,7 +65,8 @@ def login():
             return jsonify({'error' : error}), 406
         
         if user is None:
-            error = 'Incorrect username or password!'
+            error = 'Incorrect username/password or not verified!'
+            return jsonify({'error' : error}), 406
             
         elif not check_password_hash(user['password'], password):
             error = 'Incorrect username or password!'
@@ -114,3 +117,32 @@ def logout():
     jwt_redis_blocklist.set(jti, "", ex=timedelta(hours=1))
 
     return jsonify(msg=f"{ttype.capitalize()} token successfully revoked"), 200
+
+@bp.route("/verify", methods=["POST"])
+def verify():
+    AUTH_HEADER=os.getenv("AUTH_HEADER")
+    AUTH_VALUE=os.getenv("AUTH_VALUE")
+    
+    
+    header = request.headers.get(AUTH_HEADER)
+    user_id = request.form.get('user_id')
+    db = get_db()
+    
+    if not user_id:
+        return jsonify({'error': 'user_id is required'}), 406
+    
+    if(header == AUTH_VALUE):
+        
+        try:
+            db.execute(
+                "UPDATE user SET verified = 1 WHERE id = ?",
+                (user_id),
+            )
+            db.commit()
+            return jsonify({'success' : {'verified_id': user_id}}), 200
+        
+        except db.IntegrityError:
+            error = 'Something went wrong, try again with new data!'
+            return jsonify(error=error), 406
+        
+    return jsonify(error = 'User not verified!'), 401
