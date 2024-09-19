@@ -1,21 +1,8 @@
 # homeMate - AI Home Assistant
 
-homeMate is an assistant to help users to maintain their households. Easy to use via chat.
+_flask API backend that interacts with a Ollama API._
 
-_The idea is also to use it with voice commands_
-
-## Functionalities
-
-With homeMate you can:
-
-- [ ] interact with IoT devices
-- [ ] tasks
-- [ ] grocery list
-- [ ] fridge monitoring
-- [ ] recipes ideas
-- [ ] alarms and reminders
-- [ ] information (news, temperature, etc.)
-- [ ] download & play music
+Link to frontend: https://github.com/mvisnjic/homeMate-frontend/tree/it
 
 ## Organization
 
