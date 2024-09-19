@@ -56,8 +56,5 @@ def create_app(test_config=None):
     
     from . import chat
     app.register_blueprint(chat.bp)
-
-    # from . import model WIP
-    # model.init_app(app) WIP
     
     return app

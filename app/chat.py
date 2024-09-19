@@ -59,7 +59,6 @@ def generate():
         if(len(messages) == 11):
             break
         
-    print(messages)
     if user_id is None:
         return jsonify(error='user_id is required.'), 406
     if user_message is None:
@@ -145,41 +144,6 @@ def create_chat():
     else:
         return jsonify({'error':'Something went wrong, try again with new data!'}), 405
     
-# @bp.route('/send', methods=["POST"])
-# @jwt_required(verify_type=False)
-# def save_message():
-#     if request.method == 'POST':
-#         user_id = request.form.get('user_id')
-#         message = request.form.get('message')
-#         chat_id = request.form.get('chat_id')
-        
-#         db = get_db()
-#         error = None
-        
-#         if not user_id:
-#             error = 'user_id is required..'
-#             return jsonify(error=error), 406
-#         if not message or message == '':
-#             error = 'message is required..'
-#             return jsonify(error=error), 406
-#         if not chat_id:
-#             error = 'chat_id is required..'
-#             return jsonify(error=error), 406
-        
-#         user_id = int(user_id)
-#         chat_id = int(chat_id)
-    
-#         try:
-#             db.execute('INSERT INTO chat_line (chat_id, user_id, line_text) VALUES (?, ?, ?)', (chat_id, user_id, message))
-#         except db.Error:
-#             db.rollback()
-#             error = 'Something went wrong, while creating a chat!'
-#             return jsonify(error=error), 406
-        
-#         db.commit()
-#         return jsonify({'success' : {'chat_id': chat_id, 'user_id': user_id, 'message': message}}), 200
-#     else:
-#         return jsonify({'error':'Something went wrong, try again with new data!'}), 405
 
 @bp.route('/getchats', methods=["POST"])
 @jwt_required(verify_type=False)
