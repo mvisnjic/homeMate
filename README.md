@@ -8,14 +8,10 @@ _The idea is also to use it with voice commands_
 
 With homeMate you can:
 
-- [ ] interact with IoT devices
-- [ ] tasks
-- [ ] grocery list
-- [ ] fridge monitoring
-- [ ] recipes ideas
-- [ ] alarms and reminders
-- [ ] information (news, temperature, etc.)
-- [ ] download & play music
+- [x] interact with IoT devices
+- [x] information (news, temperature, etc.)
+- [x] download & play music
+- [ ] - reading PDFs - work in progress...
 
 ## Organization
 

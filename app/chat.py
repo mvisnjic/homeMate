@@ -1,33 +1,25 @@
 import redis
 from flask import (
-    Blueprint, flash, g, redirect, render_template, request, session, url_for, jsonify, Response, stream_with_context
+    Blueprint, flash, g, redirect, render_template, request, session, url_for, jsonify, Response, stream_with_context, send_from_directory, current_app
 )
+from werkzeug.utils import secure_filename
 from flask_jwt_extended import (create_access_token, get_jwt_identity, jwt_required, get_jwt, create_refresh_token, unset_jwt_cookies)
 import math
 import os
 import requests
 import json
+import sys
 from dotenv import load_dotenv
-from app.db import get_db
+from app.helpers.db import get_db
+from app.helpers.db_helpers import save_message_to_db
+import re
+from .helpers.chat_helpers import download_audio, extract_json_from_text, handle_action
+import pymupdf
+from io import BytesIO
 
 load_dotenv()
  
 bp = Blueprint('chat', __name__, url_prefix='/chat')
-
-
-def save_message_to_db(chat_id, user_id, message):
-    db = get_db()
-    
-    try:
-        db.execute('INSERT INTO chat_line (chat_id, user_id, line_text) VALUES (?, ?, ?)', (chat_id, user_id, message))
-    except db.Error:
-        db.rollback()
-        error = 'Something went wrong, saving into a DB!'
-        return jsonify(error=error), 406
-        
-    db.commit()
-    
-    return jsonify({'success' : {'chat_id': chat_id, 'user_id': user_id, 'message': message}}), 200
 
 
 @bp.route('/loadmodel', methods=["POST"])
@@ -47,8 +39,9 @@ def loadmodel():
 def generate():
     data = request.get_json()
     GEMMA_URL = os.getenv("GEMMA_URL") + '/api/chat'
-
+    db = get_db()
     user_id = data.get('user_id', None)
+    user_username = data.get('username', None)
     chat_id = data.get('chat_id', None)
     user_message = data.get('user_message', None)
     request_messages = data.get('messages', None)
@@ -56,9 +49,8 @@ def generate():
     messages = []
     for message in request_messages:
         messages.append({'content': message['content'], 'role': message['role']})
-        if(len(messages) == 11):
+        if(len(messages) == 15):
             break
-        
     print(messages)
     if user_id is None:
         return jsonify(error='user_id is required.'), 406
@@ -68,12 +60,15 @@ def generate():
         return jsonify(error='user_message is too large. 1000 char max.'), 413
     
     json_object = {
-        "model": model,
-        "messages": messages
+    "model": model,
+    "messages": messages,
+    "stream": True
     }
+
     if chat_id is None:
         chat_response = create_chat()
         chat_id = chat_response[0].get_json().get('chat_id')
+        print(chat_id)
     gemma_response = requests.post(GEMMA_URL, json=json_object, stream=True)
     message = ""
     
@@ -82,7 +77,6 @@ def generate():
     @stream_with_context
     def stream():
         nonlocal message
-
         for chunk in gemma_response.iter_lines():
             if chunk:
                 decoded_chunk = chunk.decode('utf-8')
@@ -92,10 +86,18 @@ def generate():
                     if 'message' in json_data and 'content' in json_data['message']:
                         message_content = json_data['message']['content']
                         message += message_content
-                        yield jsonify({'chat_id': chat_id, 'response': message_content, 'json': json_data}).get_data(as_text=True) + '\n'
+                    if "action" in message and "parameters" in message:
+                        extracted = extract_json_from_text(message)
+
+                        if extracted:
+                            message = handle_action(extracted)
+                            json_data['message']['content'] = message
+                    yield jsonify({'chat_id': chat_id, 'response': message_content, 'json': json_data}).get_data(as_text=True) + '\n'
                 
                 except json.JSONDecodeError:
                     continue
+                except requests.exceptions.ConnectionError:
+                    message = 'ERROR: There is no connection with IOT server.'
         
         json_data['message']['content'] = message
         yield jsonify({'chat_id': chat_id, 'done': True, "json_data": json_data}).get_data(as_text=True) + '\n'
@@ -111,6 +113,87 @@ def generate():
     return Response(stream(), content_type='application/json')
 
 
+@bp.route('/music/list')
+def list_music():
+    files = [f for f in os.listdir(f'{current_app.instance_path}/Music') if f.endswith('.mp3')]
+    return jsonify(files)
+
+@bp.route('/music/<filename>')
+def serve_music(filename):
+    return send_from_directory(f'{current_app.instance_path}/Music', f'{filename}')
+
+# @bp.route('/analyze_pdf_direct', methods=["POST"])
+# def analyze_pdf_direct():
+#     file = request.files['file']
+#     stream = BytesIO(file.read())
+#     doc = pymupdf.open(stream=stream, filetype='pdf') # open a document
+#     for page in doc: # iterate the document pages
+#         text = page.get_text()
+#     text = "\n".join([page.get_text() for page in doc])
+    
+#     task = 'sum_total_due'
+#     summaries = analyze_pdf_text_in_chunks(text, task)
+#     if task == "summarize":
+#         final = final_summary_from_chunks(summaries)
+#         return jsonify({"sum_total_due": final})
+#     else:
+#         return jsonify({"results": summaries})
+
+# def chunk_text(text, chunk_size=1000):
+#     return [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
+
+# def analyze_pdf_text_in_chunks(text, task):
+#     chunks = chunk_text(text, 2000)
+#     results = []
+#     print("no of CHUNKS", len(chunks))
+#     for i, chunk in enumerate(chunks):
+#         if task == "sum_total_due":
+#             print('sum task')
+#             prompt = f"Can you sum all total amount values from all pages::\n\n{chunk}"
+#         elif task == "summarize":
+#             prompt = f"Summarize this part of the document:\n\n{chunk}"
+#         else:
+#             prompt = f"Analyze this part of the PDF:\n\n{chunk}"
+#         print(prompt)
+#         res = requests.post(
+#             os.getenv("GEMMA_URL") + "/api/generate",
+#             json={"model": "homeMate-model", "prompt": prompt, "stream": False}
+#         )
+#         print("res", res)
+#         response = res.json().get("response", "")
+#         print(response)
+#         results.append(response.strip())
+#         if "total" in response or "amount" in response:
+#             return response
+
+    # return results
+
+# def final_summary_from_chunks(summaries):
+#     full_summary_prompt = "Combine and summarize these parts:\n\n" + "\n\n".join(summaries)
+    
+#     res = requests.post(
+#         os.getenv("GEMMA_URL") + "/api/generate",
+#         json={"model": "homeMate-model", "prompt": full_summary_prompt, "stream": False}
+#     )
+#     return res.json().get("response", "")
+
+
+# @bp.route('/upload_pdf', methods=["POST"])
+# def upload_pdf():
+#     if 'file' not in request.files:
+#         return jsonify({"error": "No file part"}), 400
+
+#     file = request.files['file']
+#     if file.filename == '':
+#         return jsonify({"error": "No selected file"}), 400
+#     if file.mimetype != 'application/pdf':
+#         return jsonify({"error": "Invalid file type. Only PDFs are allowed."}), 400
+
+#     file_id = request.form.get('file_id', 'temp.pdf')
+#     save_path = os.path.join(current_app.instance_path, 'upload_folder', file_id)
+#     file.save(save_path)
+#     return jsonify({"status": "uploaded", "file_id": file_id})
+            
 @bp.route('/create', methods=["POST"])
 @jwt_required(verify_type=False)
 def create_chat():
@@ -145,41 +228,6 @@ def create_chat():
     else:
         return jsonify({'error':'Something went wrong, try again with new data!'}), 405
     
-# @bp.route('/send', methods=["POST"])
-# @jwt_required(verify_type=False)
-# def save_message():
-#     if request.method == 'POST':
-#         user_id = request.form.get('user_id')
-#         message = request.form.get('message')
-#         chat_id = request.form.get('chat_id')
-        
-#         db = get_db()
-#         error = None
-        
-#         if not user_id:
-#             error = 'user_id is required..'
-#             return jsonify(error=error), 406
-#         if not message or message == '':
-#             error = 'message is required..'
-#             return jsonify(error=error), 406
-#         if not chat_id:
-#             error = 'chat_id is required..'
-#             return jsonify(error=error), 406
-        
-#         user_id = int(user_id)
-#         chat_id = int(chat_id)
-    
-#         try:
-#             db.execute('INSERT INTO chat_line (chat_id, user_id, line_text) VALUES (?, ?, ?)', (chat_id, user_id, message))
-#         except db.Error:
-#             db.rollback()
-#             error = 'Something went wrong, while creating a chat!'
-#             return jsonify(error=error), 406
-        
-#         db.commit()
-#         return jsonify({'success' : {'chat_id': chat_id, 'user_id': user_id, 'message': message}}), 200
-#     else:
-#         return jsonify({'error':'Something went wrong, try again with new data!'}), 405
 
 @bp.route('/getchats', methods=["POST"])
 @jwt_required(verify_type=False)
@@ -254,7 +302,7 @@ def get_messages():
                 page = total_pages
             
             offset = math.ceil(offset)
-            print('total pages', total_pages, 'offset', offset, 'per_page', per_page)
+            print('total pages', total_pages, 'offset', offset, 'per_page', per_page, 'page', page)
             cursor = db.execute('''SELECT cl.*, user.username, c.created_by FROM chat_line cl 
                                 INNER JOIN user ON user.id = cl.user_id
                                 INNER JOIN chat c ON c.id = cl.chat_id
@@ -277,7 +325,7 @@ def get_messages():
                     'content': row['line_text']
                 })
 
-            return jsonify({'chat_id': chat_id, 'messages': messages, 'pagination': {'total_pages': total_pages, 'current_page': page}}), 200  
+            return jsonify({'chat_id': chat_id, 'messages': messages, 'pagination': {'total_pages': total_pages, 'current_page': page, 'total_messages': total_count, 'page': page}}), 200  
         except db.Error:
             error = 'Something went wrong with a DB!'
             return jsonify(error=error), 406

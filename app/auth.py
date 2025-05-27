@@ -6,7 +6,7 @@ from flask import (
 from werkzeug.security import check_password_hash, generate_password_hash
 from flask_jwt_extended import (create_access_token, get_jwt_identity, jwt_required, get_jwt, create_refresh_token, unset_jwt_cookies)
 from datetime import timedelta
-from app.db import get_db
+from app.helpers.db import get_db
 from dotenv import load_dotenv 
 load_dotenv()
 
