@@ -4,6 +4,9 @@ import redis
 from flask import (Flask)
 from flask_jwt_extended import (JWTManager)
 from flask_cors import CORS
+import logging
+from logging.handlers import RotatingFileHandler
+
 
 load_dotenv()
 
@@ -12,6 +15,21 @@ def create_app(test_config=None):
     
     app = Flask(__name__, instance_relative_config=True)
     CORS(app)
+    
+    log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+    log_dir = os.path.join(app.instance_path, "logs")
+    os.makedirs(log_dir, exist_ok=True)
+    log_file = os.path.join(log_dir, "homeMate.log")
+    
+    handler = RotatingFileHandler(log_file, maxBytes=10240, backupCount=5)
+    handler.setLevel(log_level)
+    formatter = logging.Formatter(
+        '[%(asctime)s] [%(levelname)s] %(name)s: %(message)s'
+    )
+    handler.setFormatter(formatter)
+    app.logger.addHandler(handler)
+    app.logger.setLevel(log_level)
+    app.logger.info("Logger initialized")
     
     jwt = JWTManager(app)
     
@@ -49,10 +67,6 @@ def create_app(test_config=None):
         pass
     try:
         os.makedirs(f'{app.instance_path}/Music')
-    except OSError:
-        pass
-    try:
-        os.makedirs(f'{app.instance_path}/upload_folder')
     except OSError:
         pass
 

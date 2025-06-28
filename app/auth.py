@@ -95,7 +95,6 @@ def protected():
 @jwt_required(refresh=True)
 def refresh():
     identity = get_jwt_identity()
-    print(identity)
     db = get_db()
     user = db.execute(
         'SELECT * FROM user WHERE id = ?', (identity,)
