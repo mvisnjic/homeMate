@@ -21,7 +21,7 @@ def download_audio(url, output_dir='instance/Music'):
     Returns:
         string: Filename
     """
-    current_app.logger.info(f'Saved chat into a DB. {chat_id}, {user_id}')
+    current_app.logger.info(f'Downloading audio file from {url}')
     with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
         info = ydl.extract_info(url, download=False)
         title = sanitize_filename(info.get("title", "audio"))
@@ -41,7 +41,7 @@ def download_audio(url, output_dir='instance/Music'):
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         ydl.download([url])
-
+    current_app.logger.info(f'Downloaded file {title}')
     return f"{title}.mp3"
 
 

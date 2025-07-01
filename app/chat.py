@@ -81,13 +81,10 @@ def generate_pdf():
 @jwt_required(verify_type=False)
 def generate():
     try:
-        
-
         data = request.get_json()
         GEMMA_URL = os.getenv("GEMMA_URL") + '/api/chat'
         db = get_db()
         user_id = data.get('user_id', None)
-        user_username = data.get('username', None)
         chat_id = data.get('chat_id', None)
         user_message = data.get('user_message', None)
         request_messages = data.get('messages', None)
@@ -161,7 +158,7 @@ def generate():
         return jsonify({'error':'Something went wrong, try again with new data!'}), 400
 
 
-@bp.route('/music/list')
+@bp.route('/music/list', methods=["GET"])
 @jwt_required(verify_type=False)
 def list_music():
     files = [f for f in os.listdir(f'{current_app.instance_path}/Music') if f.endswith('.mp3')]
@@ -169,7 +166,7 @@ def list_music():
     files.reverse()
     return jsonify(files)
 
-@bp.route('/music/<filename>')
+@bp.route('/music/<filename>', methods=["GET"])
 @jwt_required(verify_type=False)
 def serve_music(filename):
     current_app.logger.info(f"Streaming {filename}")
